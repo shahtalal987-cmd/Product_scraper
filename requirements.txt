@@ -1,6 +1,6 @@
-requests
-beautifulsoup4
+Flask
+flask-cors
 pandas
 openpyxl
-matplotlib
-jupyter
+requests
+beautifulsoup4
