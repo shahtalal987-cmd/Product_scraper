@@ -15,12 +15,12 @@ function App() {
     }
 
     setLoading(true);
-    setStatus("Scraping ${source} pages...");
+    setStatus(`Scraping ${source} pages...`);
     setProducts([]);
 
     try {
       const response = await fetch(
-        "http://127.0.0.1:5000/api/scrape",
+        "http://product-scraper-6c1z.vercel.app//api/scrape",
         {
           method: "POST",
           headers: {
@@ -53,7 +53,7 @@ function App() {
 
  const downloadCSV = () => {
   window.location.href =
-    `http://127.0.0.1:5000/api/download?source=${source.toLowerCase()}`;
+    `http://product-scraper-6c1z.vercel.app//api/download?source=${source.toLowerCase()}`;
 };
 
 
