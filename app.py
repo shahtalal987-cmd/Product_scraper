@@ -10,7 +10,7 @@ app = Flask(__name__)
 CORS(app)
 
 BASE_DIR = Path(__file__).resolve().parent
-CSV_PATH = BASE_DIR / "output" / "ebay_products.csv"
+CSV_PATH = Path("/tmp/output") / "ebay_products.csv"
 
 
 @app.route("/api/status", methods=["GET"])
@@ -30,7 +30,7 @@ def download_csv():
     if source not in allowed_sources:
         return jsonify({"error": "Invalid website."}), 400
 
-    csv_path = BASE_DIR / "output" / f"{source}_products.csv"
+    csv_path = Path("/tmp/output") / f"{source}_products.csv"
 
     if not csv_path.exists():
         return jsonify({
@@ -85,7 +85,7 @@ def start_scraping():
             }), 400
 
         # Save results in CSV and Excel
-        output_dir = BASE_DIR / "output"
+        output_dir = Path("/tmp/output")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         csv_path = output_dir / f"{source}_products.csv"
