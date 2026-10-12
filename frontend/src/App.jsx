@@ -20,7 +20,7 @@ function App() {
 
     try {
       const response = await fetch(
-        "http://product-scraper-6c1z.vercel.app/api/scrape",
+        "https://product-scraper-6c1z.vercel.app/api/scrape",
         {
           method: "POST",
           headers: {
@@ -53,7 +53,7 @@ function App() {
 
  const downloadCSV = () => {
   window.location.href =
-    `http://product-scraper-6c1z.vercel.app/api/download?source=${source.toLowerCase()}`;
+    `https://product-scraper-6c1z.vercel.app/api/download?source=${source.toLowerCase()}`;
 };
 
 
