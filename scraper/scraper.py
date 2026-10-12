@@ -413,7 +413,7 @@ def scrape_amazon(url, page=1):
     # -------------------------
 
     with open(
-        "data/amazon_debug.html",
+        "/tmp/amazon_debug.html",
         "w",
         encoding="utf-8"
     ) as f:
@@ -421,7 +421,7 @@ def scrape_amazon(url, page=1):
         f.write(response.text)
 
     print(
-        "Amazon debug HTML saved."
+        "Amazon debug HTML saved to /tmp."
     )
 
     # -------------------------
