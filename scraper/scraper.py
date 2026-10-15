@@ -55,7 +55,7 @@ def fetch_page(url, filename):
 
         response.raise_for_status()
 
-        with open(filename, "w", encoding="utf-8") as file:
+        with open("/tmp/alibaba_page_1.html", "w", encoding="utf-8") as file:
             file.write(response.text)
 
         print(f"HTML saved to: {filename}")
@@ -485,6 +485,7 @@ def scrape_amazon(url, page=1):
                 else None
             )
 
+            
             # -------------------------
             # PRICE
             # -------------------------
@@ -496,78 +497,68 @@ def scrape_amazon(url, page=1):
             )
 
             if price_element:
-
                 price_text = price_element.get_text(
                     strip=True
                 )
 
+                cleaned_price = re.sub(
+                    r"[^0-9.]",
+                    "",
+                    price_text.replace(",", "")
+                )
+
                 try:
-
-                    cleaned_price = (
-                        price_text
-                        .replace("$", "")
-                        .replace("PKR", "")
-                        .replace(",", "")
-                        .strip()
-                    )
-
-                    price = float(cleaned_price)
-
+                    if cleaned_price:
+                        price = float(cleaned_price)
                 except ValueError:
                     price = None
 
+            # Fallback: whole price + fraction
+            if price is None:
+                whole_element = card.select_one(
+                    ".a-price-whole"
+                )
 
-                    if price is None:
+                fraction_element = card.select_one(
+                    ".a-price-fraction"
+                )
 
-                        whole_element = card.select_one(
-                            ".a-price-whole"
-                        )
+                if whole_element:
+                    whole_text = whole_element.get_text(
+                        strip=True
+                    )
 
-                        fraction_element = card.select_one(
-                            ".a-price-fraction"
-                        )
+                    whole = re.sub(
+                        r"\D",
+                        "",
+                        whole_text
+                    )
 
-                    if whole_element:
-
-                        whole=whole_element.get_text(
+                    fraction = (
+                        fraction_element.get_text(
                             strip=True
+                        ).strip()
+                        if fraction_element
+                        else "00"
+                    )
 
-                        ).replace(",", "").replace(".", "")
+                    fraction = re.sub(
+                        r"\D",
+                        "",
+                        fraction
+                    )
 
-                        fraction = (
-                            fraction_element.get_text(
-                                strip=True
-                            )
-
-                            if fraction_element
-                            else "80"
-                        )
-
-                        try:
+                    try:
+                        if whole:
                             price = float(
-                                f"{whole}.{fraction}"
+                                f"{whole}.{fraction[:2].ljust(2, '0')}"
                             )
+                    except ValueError:
+                        price = None
 
-                        except ValueError:
-                            price = None
-
-
-                    if price is None:
-                       print("\nPRICE NOT FOUND")
-                       print("PRODUCT:", name)
-
-                       price_debug = card.select_one(".a-price")
-
-                    if price_debug:
-                       print("PRICE HTML:")
-                       print(price_debug.prettify())
-                    else:
-                       print("NO .a-price FOUND")
-
-                       print("CARD TEXT:")
-                       print(card.get_text(" ", strip=True)[:1000])
-
-
+            if price is None:
+                print("PRICE NOT FOUND")
+                print("PRODUCT:", name)
 
             # -------------------------
             # RATING
@@ -589,67 +580,61 @@ def scrape_amazon(url, page=1):
                     rating_text
                 )
 
+            
             # -------------------------
             # PRODUCT URL
             # -------------------------
 
+            product_url = None
 
-                product_url = None
+            url_element = card.select_one(
+                "a.a-link-normal.s-no-outline"
+            )
 
+            if not url_element:
                 url_element = card.select_one(
-                    "a.a-link-normal.s-no-outline"
+                    "a[href*='/dp/']"
                 )
 
-                if not url_element:
-                    url_element = card.select_one(
-                        "a[href*='/dp/']"
+            if not url_element:
+                url_element = card.select_one(
+                    "a[href*='/gp/product/']"
+                )
+
+            if url_element and url_element.get("href"):
+                product_url = url_element.get("href")
+
+                if product_url.startswith("/"):
+                    product_url = (
+                        "https://www.amazon.com"
+                        + product_url
                     )
-
-                if not url_element:
-                    url_element = card.select_one(
-                        "a[href*='/gp/product/']"
-    )
-
-                if url_element and url_element.get("href"):
-                    product_url = url_element.get("href")
-
-                    if product_url.startswith("/"):
-                        product_url = "https://www.amazon.com" + product_url
 
             # -------------------------
             # AVAILABILITY
             # -------------------------
-            
 
-                availability = None
+            availability = None
+            card_text = card.get_text(" ", strip=True)
 
-# Complete card text
-                card_text = card.get_text(" ", strip=True)
+            availability_patterns = [
+                r"Only \d+ left in stock",
+                r"\bIn Stock\b",
+                r"\bCurrently unavailable\b",
+                r"\bTemporarily out of stock\b",
+            ]
 
-# Common Amazon availability patterns
-                availability_patterns = [
-                    r"\bIn Stock\b",
-                    r"\bin stock\b",
-                    r"Only \d+ left in stock",
-                    r"Only \d+ left in stock - order soon",
-                    r"\bCurrently unavailable\b",
-                    r"\bTemporarily out of stock\b",
-                    r"Usually ships within .+?(?=\s|$)",
-                ]
+            for pattern in availability_patterns:
+                match = re.search(
+                    pattern,
+                    card_text,
+                    re.IGNORECASE
+                )
 
-                for pattern in availability_patterns:
+                if match:
+                    availability = match.group(0).strip()
+                    break
 
-                    match = re.search(
-                         pattern,
-                         card_text,
-                         re.IGNORECASE
-                    )
-
-                    if match:
-
-                       availability = match.group(0).strip()
-
-                       break
             # -------------------------
             # DESCRIPTION
             # -------------------------
