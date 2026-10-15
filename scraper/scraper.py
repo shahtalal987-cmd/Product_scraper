@@ -1087,6 +1087,7 @@ def scrape_alibaba(url, pages=1):
 
         cards = soup.select("a.product-title")
 
+
         print(
             f"Alibaba products found on page {page}: {len(cards)}"
         )
@@ -1686,12 +1687,12 @@ def scrape_ebay_auto_saved_pages(pages=2):
         return []
 
     # Create output folder automatically
-    os.makedirs("output", exist_ok=True)
+    os.makedirs("/tmp/output", exist_ok=True)
 
     df = pd.DataFrame(unique_products)
 
-    csv_path = "output/ebay_products.csv"
-    excel_path = "output/ebay_products.xlsx"
+    csv_path = "/tmp/output/ebay_products.csv"
+    excel_path = "/tmp/output/ebay_products.xlsx"
 
     df.to_csv(csv_path, index=False, encoding="utf-8-sig")
     df.to_excel(excel_path, index=False)
