@@ -66,12 +66,18 @@ def start_scraping():
             )
             products = scrape_amazon(search_url, page=1)
 
+            print("AMAZON PRODUCTS:", len(products) if products else 0)
+            print("AMAZON SAMPLE:", products[:1] if products else [])
+
         elif source == "alibaba":
             search_url = (
                 "https://www.alibaba.com/trade/search?SearchText="
                 + quote_plus(product_name)
             )
             products = scrape_alibaba(search_url, pages=2)
+
+            print("ALIBABA PRODUCTS:", len(products) if products else 0)
+            print("ALIBABA SAMPLE:", products[:1] if products else [])
 
         elif source == "ebay":
             # eBay currently reads your existing saved HTML files.
