@@ -396,6 +396,15 @@ def scrape_amazon(url, page=1):
             if attempt < 3:
                 time.sleep(10 * attempt)
 
+
+                print("FINAL AMAZON STATUS:", response.status_code)
+                print("FINAL AMAZON HTML LENGTH:", len(response.text))
+                print(
+                    "AMAZON CHALLENGE:",
+                    any(word in response.text.lower()
+                        for word in ["captcha", "robot check", "validatecaptcha"])
+                )
+
     # -------------------------
     # REQUEST FAILED
     # -------------------------
