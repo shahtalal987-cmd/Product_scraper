@@ -358,11 +358,28 @@ def scrape_amazon(url, page=1):
             )
 
             # Normal Amazon search page
-            if (
-                response.status_code == 200
-                and len(response.text) > 100000
-            ):
+            
+            if response.status_code == 200 and len(response.text) > 100000:
+                page_text = response.text.lower()
+
+                challenge_markers = [
+                    "captcha",
+                    "robot check",
+                    "validatecaptcha",
+                    "enter the characters you see below"
+                ]
+
+                if any(marker in page_text for marker in challenge_markers):
+                    print("Amazon challenge page detected.")
+                    return []
+
                 break
+
+            if response.status_code == 503:
+                print("Amazon returned 503 Service Unavailable.")
+                print("This response cannot be used as product data.")
+                return []
+
 
             # Verification/challenge
             if (
@@ -1078,6 +1095,9 @@ def scrape_alibaba(url, pages=1):
         print("Alibaba HTML length:", len(html))
 
         soup = BeautifulSoup(html, "html.parser")
+
+        print("Alibaba HTML preview:", soup.get_text(" ", strip=True)[:1000])
+        print("Alibaba product cards:", len(soup.select("[class*='product']")))
 
 
         print("Alibaba page title:", soup.title.get_text(strip=True) if soup.title else "No title")
