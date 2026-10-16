@@ -747,8 +747,11 @@ def scrape_alibaba(url, pages=1):
 
         print("Alibaba URL:", page_url)
         print("Alibaba HTML length:", len(html))
+        print("HTML SAVED FILE:", filename)
 
         soup = BeautifulSoup(html, "html.parser")
+
+        print("HTML BODY TEXT:", soup.get_text(" ", strip=True)[:1500])
 
         print("Alibaba HTML preview:", soup.get_text(" ", strip=True)[:1000])
         print("Alibaba product cards:", len(soup.select("[class*='product']")))
