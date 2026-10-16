@@ -738,7 +738,7 @@ def scrape_alibaba(url, pages=2):
         response = requests.get(
             "https://serpapi.com/search.json",
             params=params,
-            timeout=30,
+            timeout=(10,60)
         )
         print("SerpApi status:", response.status_code)
         response.raise_for_status()
@@ -768,8 +768,22 @@ def scrape_alibaba(url, pages=2):
 
             if not name or not product_url:
                 continue
+            from urllib.parse import urlparse, unquote
 
-            if "alibaba.com" not in urlparse(product_url).netloc.lower():
+            product_url = item.get("link", "").strip()
+            displayed_link = item.get("displayed_link", "").strip()
+
+            host = urlparse(product_url).netloc.lower()
+
+            is_alibaba = (
+                host == "alibaba.com"
+                or host.endswith(".alibaba.com")
+            )
+
+            if not is_alibaba:
+    # Google redirect ko actual Alibaba URL samajh kar
+    # manually construct nahi karna.
+                print("Skipping non-Alibaba URL:", product_url)
                 continue
 
             if product_url in seen_urls:
