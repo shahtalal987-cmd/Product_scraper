@@ -747,6 +747,17 @@ def scrape_alibaba(url, pages=2):
         if data.get("error"):
             raise RuntimeError(f"SerpApi error: {data['error']}")
 
+            print("API ERROR:", data.get("error"))
+        print("SEARCH QUERY:", params["q"])
+        print("ORGANIC RESULTS COUNT:", len(data.get("organic_results", [])))
+
+        for item in data.get("organic_results", [])[:5]:
+            print("TITLE:", item.get("title"))
+            print("LINK:", item.get("link"))
+            print("REDIRECT LINK:", item.get("redirect_link"))
+            print("DISPLAYED LINK:", item.get("displayed_link"))
+            print("--------------------")
+
         results = data.get("organic_results", [])
         print(f"Page {page + 1}: {len(results)} search results")
 
