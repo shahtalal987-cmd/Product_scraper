@@ -701,276 +701,103 @@ def scrape_alibaba_product_details(product_url):
 
 
 
-def scrape_alibaba(url, pages=1):
-    print("\n========== ALIBABA ==========")
 
-    all_products = []
-
-    for page in range(1, pages + 1):
-        print(f"\n----- Alibaba Page {page} -----")
-
-        parsed_url = urlparse(url)
-
-        query_params = parse_qs(parsed_url.query)
-
-        query_params["page"] = [str(page)]
-
-        new_query = urlencode(query_params, doseq=True)
-
-        page_url = urlunparse(
-
-        (
-            parsed_url.scheme,
-            parsed_url.netloc,
-            parsed_url.path,
-            parsed_url.params,
-            new_query,
-            parsed_url.fragment
-        )
-    )
-        print(page_url)
-
-        print(f"REQUEST URL: {page_url}")
-
-        filename = f"data/alibaba_page_{page}.html"
-
-        html = fetch_page(page_url, filename)
-
-        print("HTML IS NONE:", html is None)
-        print("HTML REPR:", repr(html[:1000]) if html else repr(html))
-
-        soup = BeautifulSoup(html or "", "html.parser")
-
-        
-
-        if soup.body:
-            print("BODY HTML:", repr(str(soup.body)[:2000]))
-        else:
-            print("FULL HTML PREVIEW:", repr(str(soup)[:2000]))
-
-        if not html:
-            print(f"Page {page} failed. Moving to next page...")
-            continue
-
-        print("ALIBABA HTML TYPE:", type(html))
-        print("ALIBABA HTML IS EMPTY:", not bool(html))
-        print("ALIBABA HTML LENGTH:", len(html) if html else 0)
-        print("ALIBABA HTML START:", repr(html[:300]) if html else repr(html))
-
-        print("Alibaba URL:", page_url)
-        print("Alibaba HTML length:", len(html))
-        print("HTML SAVED FILE:", filename)
-
-        soup = BeautifulSoup(html, "html.parser")
-
-        print("HTML TITLE:", soup.title.get_text(strip=True) if soup.title else "No title")
-
-        print("BODY EXISTS:", soup.body is not None)
-
-        print("BODY HTML:", repr(str(soup.body)[:3000]) if soup.body else "No body")
-
-        print("PRODUCT KEYWORDS:", {
-            "product-title": html.count("product-title"),
-            "productTitle": html.count("productTitle"),
-            "product-title-link": html.count("product-title-link"),
-            "verification": html.lower().count("verify"),
-            "captcha": html.lower().count("captcha"),
-        })
-
-        print("HTML BODY TEXT:", soup.get_text(" ", strip=True)[:1500])
-
-        print("Alibaba HTML preview:", soup.get_text(" ", strip=True)[:1000])
-        print("Alibaba product cards:", len(soup.select("[class*='product']")))
-
-
-        print("Alibaba page title:", soup.title.get_text(strip=True) if soup.title else "No title")
-        print("Alibaba product-title links:", len(soup.select("a.product-title")))
-        print("Alibaba product-title text:", len(soup.select(".product-title")))
-        print("Alibaba links:", len(soup.select("a[href]")))
-
-        for link in soup.select("a[href]"):
-            text = link.get_text(" ", strip=True)
-            href = link.get("href", "")
-
-            if text and ("headphone" in text.lower() or "earphone" in text.lower()):
-                print("POSSIBLE PRODUCT:", text[:120])
-                print("PRODUCT URL:", href[:200])
-
-
-        cards = soup.select("a.product-title")
-
-
-        print(
-            f"Alibaba products found on page {page}: {len(cards)}"
-        )
-
-        page_products = []
-
-        for card in cards:
-            try:
-                title_element = card.select_one("h2")
-                name = clean_text(title_element)
-
-                product_url = card.get("href")
-
-                if product_url:
-                    product_url = urljoin(
-                        "https://www.alibaba.com",
-                        product_url
-                    )
-
-                # Complete product card text
-                card_text = clean_text(
-                    card.parent.parent.parent
-                )
-
-                # -------------------------
-                # PRICE
-                # -------------------------
-
-                price_match = re.search(
-                    r"PKR\s*([\d,\s]+)\s*-\s*([\d,\s]+)",
-                    card_text,
-                    re.I
-                )
-
-                price_min = None
-                price_max = None
-
-                if price_match:
-                    price_min = float(
-                        re.sub(
-                            r"\s+",
-                            "",
-                            price_match.group(1)
-                        ).replace(",", "")
-                    )
-
-                    price_max = float(
-                        re.sub(
-                            r"\s+",
-                            "",
-                            price_match.group(2)
-                        ).replace(",", "")
-                    )
-
-                # -------------------------
-                # SOLD
-                # -------------------------
-
-                sold_match = re.search(
-                    r"([\d,]+)\s*sold",
-                    card_text,
-                    re.I
-                )
-
-                sold = None
-
-                if sold_match:
-                    sold = int(
-                        sold_match.group(1).replace(",", "")
-                    )
-
-                # -------------------------
-                # RATING
-                # -------------------------
-
-                rating_match = re.search(
-                    r"(\d+(?:\.\d+)?)\s*/\s*5\.0",
-                    card_text
-                )
-
-                rating = None
-
-                if rating_match:
-                    rating = float(
-                        rating_match.group(1)
-                    )
-
-                # -------------------------
-                # REVIEWS
-                # -------------------------
-
-                reviews_match = re.search(
-                    r"\(([\d,]+)\s*Reviews\)",
-                    card_text,
-                    re.I
-                )
-
-                reviews = None
-
-                if reviews_match:
-                    reviews = int(
-                        reviews_match.group(1).replace(",", "")
-                    )
-
-                # -------------------------
-                # PRODUCT
-                # -------------------------
-
-
-                # -------------------------
-                # DETAIL PAGE
-                # -------------------------
-
-                description = scrape_alibaba_product_details(
-                product_url
-)
-
-               
-
-                product = {
-                    "source": "Alibaba",
-                    "name": name,
-                    "price_min": price_min,
-                    "price_max": price_max,
-                    "rating": rating,
-                    "reviews": reviews,
-                    "availability": "Available",
-                    "sold": sold,
-                    "url": product_url,
-                    "category": "Wireless Headphones",
-                    "description": description,
-                }
-
-                page_products.append(product)
-
-            except Exception as error:
-                print(
-                    f"Product skipped on page {page}: {error}"
-                )
-
-        all_products.extend(page_products)
-
-        print(
-            f"Page {page} successfully added: "
-            f"{len(page_products)} products"
-        )
-
-    # -------------------------
-    # REMOVE DUPLICATES
-    # -------------------------
-
-    unique_products = []
-
+def scrape_alibaba(url, pages=2):
+    import os
+    import re
+    import requests
+    from urllib.parse import urlparse, parse_qs
+
+    print("\n========== ALIBABA SERPAPI ==========")
+
+    # Search keyword URL se extract karo
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+    product_name = (
+        query.get("SearchText", [""])[0]
+        or query.get("q", [""])[0]
+        or "wireless headphones"
+    ).strip()
+
+    api_key = os.getenv("SERPAPI_KEY")
+    if not api_key:
+        raise ValueError("SERPAPI_KEY environment variable missing.")
+
+    products = []
     seen_urls = set()
 
-    for product in all_products:
-        product_url = product.get("url")
+    for page in range(pages):
+        params = {
+            "engine": "google",
+            "q": f"site:alibaba.com {product_name}",
+            "api_key": api_key,
+            "start": page * 10,
+            "num": 10,
+        }
 
-        if product_url and product_url not in seen_urls:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params=params,
+            timeout=30,
+        )
+        print("SerpApi status:", response.status_code)
+        response.raise_for_status()
+        data = response.json()
+
+        if data.get("error"):
+            raise RuntimeError(f"SerpApi error: {data['error']}")
+
+        results = data.get("organic_results", [])
+        print(f"Page {page + 1}: {len(results)} search results")
+
+        for item in results:
+            name = item.get("title", "").strip()
+            product_url = item.get("link", "")
+            description = item.get("snippet", "")
+
+            if not name or not product_url:
+                continue
+
+            if "alibaba.com" not in urlparse(product_url).netloc.lower():
+                continue
+
+            if product_url in seen_urls:
+                continue
+
             seen_urls.add(product_url)
-            unique_products.append(product)
 
-    print("\n================================")
-    print(
-        f"Total unique Alibaba products: "
-        f"{len(unique_products)}"
-    )
-    print("================================")
+            # Google results mein price/rating har baar nahi milte
+            price = None
+            price_match = re.search(
+                r"(?:US\s*\$|\$)\s*([\d,]+(?:\.\d+)?)",
+                name + " " + description,
+                re.IGNORECASE,
+            )
+            if price_match:
+                price = float(price_match.group(1).replace(",", ""))
 
-    return unique_products
+            rating = None
+            rating_match = re.search(
+                r"\b([0-5]\.\d)\s*(?:out of 5|/5|stars?)\b",
+                description,
+                re.IGNORECASE,
+            )
+            if rating_match:
+                rating = float(rating_match.group(1))
 
+            products.append({
+                "source": "Alibaba",
+                "name": name,
+                "price": price,
+                "rating": rating,
+                "availability": None,
+                "url": product_url,
+                "category": product_name,
+                "description": description or None,
+            })
+
+    print("Unique Alibaba results:", len(products))
+    return products
 
 # --------------------------------------------------
 # EBAY
