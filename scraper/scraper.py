@@ -277,481 +277,130 @@ def scrape_amazon_description(product_url):
         print("Description request error:", error)
         return None
 
-
-# --------------------------------------------------
-# AMAZON
-# --------------------------------------------------
-
-
 def scrape_amazon(url, page=1):
+    print(f"\n========== AMAZON API PAGE {page} ==========")
 
-
+    # Read the product keyword from the existing Amazon search URL
     parsed_url = urlparse(url)
-
     query_params = parse_qs(parsed_url.query)
+    product_name = query_params.get("k", [""])[0].strip()
 
-    query_params["page"] = [str(page)]
+    if not product_name:
+        print("Amazon search keyword is missing.")
+        return []
 
-    url = urlunparse(
-        (
-            parsed_url.scheme,
-            parsed_url.netloc,
-            parsed_url.path,
-            parsed_url.params,
-            urlencode(query_params, doseq=True),
-            parsed_url.fragment
+    # Read the private API key from Vercel Environment Variables
+    api_key = os.getenv("SERPAPI_KEY")
+
+    if not api_key:
+        raise ValueError(
+            "SERPAPI_KEY is missing from Environment Variables."
         )
-    )
 
-    print(f"\nAmazon Page {page}")
-    print(f"REQUEST URL: {url}")
+    params = {
+        "engine": "amazon",
+        "amazon_domain": "amazon.com",
+        "k": product_name,
+        "page": page,
+        "api_key": api_key,
+    }
 
-    # YAHAN tumhara existing Amazon code start hoga
+    try:
+        response = requests.get(
+            "https://serpapi.com/search.json",
+            params=params,
+            timeout=30
+        )
+
+        print("SerpApi status:", response.status_code)
+        response.raise_for_status()
+
+        data = response.json()
+
+    except requests.RequestException as error:
+        print("SerpApi request failed:", error)
+        raise RuntimeError("Amazon product API request failed.") from error
+
+    if data.get("error"):
+        raise RuntimeError(
+            f"SerpApi error: {data['error']}"
+        )
+
+    results = data.get("organic_results", [])
+    print("Amazon API results received:", len(results))
 
     products = []
 
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/154.0.0.0 Safari/537.36"
-        ),
-        "Accept": (
-            "text/html,application/xhtml+xml,application/xml;"
-            "q=0.9,image/avif,image/webp,*/*;q=0.8"
-        ),
-        "Accept-Language": "en-US,en;q=0.9",
-        "Accept-Encoding": "gzip, deflate, br",
-        "Upgrade-Insecure-Requests": "1"
-    }
+    for item in results:
+        name = item.get("title")
 
-    response = None
+        if not name:
+            continue
 
-    # -------------------------
-    # REQUEST WITH RETRIES
-    # -------------------------
+        price = item.get("extracted_price")
 
-    for attempt in range(1, 4):
+        # Fallback if the API only provides formatted price text
+        if price is None:
+            price_text = item.get("price", "")
+            match = re.search(r"[\d,]+(?:\.\d+)?", price_text)
 
-        try:
-
-            print(
-                f"Amazon request attempt {attempt}/3"
-            )
-
-            time.sleep(3 + attempt)
-
-            response = requests.get(
-                url,
-                headers=headers,
-                timeout=30
-            )
-
-            print(
-                "Status Code:",
-                response.status_code
-            )
-
-            print(
-                "HTML LENGTH:",
-                len(response.text)
-            )
-
-            # Normal Amazon search page
-            
-            if response.status_code == 200 and len(response.text) > 100000:
-                page_text = response.text.lower()
-
-                challenge_markers = [
-                    "captcha",
-                    "robot check",
-                    "validatecaptcha",
-                    "enter the characters you see below"
-                ]
-
-                if any(marker in page_text for marker in challenge_markers):
-                    print("Amazon challenge page detected.")
-                    return []
-
-                break
-
-            if response.status_code == 503:
-                print("Amazon returned 503 Service Unavailable.")
-                print("This response cannot be used as product data.")
-                return []
-
-
-            # Verification/challenge
-            if (
-                "captcha" in response.text.lower()
-                or "robot" in response.text.lower()
-                or "verify" in response.text.lower()
-                or len(response.text) < 10000
-            ):
-
-                print(
-                    "Amazon verification/challenge detected."
-                )
-
-                if attempt < 3:
-
-                    wait_time = 10 * attempt
-
-                    print(
-                        f"Waiting {wait_time} seconds..."
-                    )
-
-                    time.sleep(wait_time)
-
-        except requests.RequestException as e:
-
-            print(
-                "Amazon request error:",
-                e
-            )
-
-            if attempt < 3:
-                time.sleep(10 * attempt)
-
-
-                print("FINAL AMAZON STATUS:", response.status_code)
-                print("FINAL AMAZON HTML LENGTH:", len(response.text))
-                print(
-                    "AMAZON CHALLENGE:",
-                    any(word in response.text.lower()
-                        for word in ["captcha", "robot check", "validatecaptcha"])
-                )
-
-    # -------------------------
-    # REQUEST FAILED
-    # -------------------------
-
-    if response is None:
-
-        print(
-            "Amazon request failed."
-        )
-
-        return []
-
-    # -------------------------
-    # SAVE DEBUG HTML
-    # -------------------------
-
-    with open(
-        "/tmp/amazon_debug.html",
-        "w",
-        encoding="utf-8"
-    ) as f:
-
-        f.write(response.text)
-
-    print(
-        "Amazon debug HTML saved to /tmp."
-    )
-
-    # -------------------------
-    # BOT VERIFICATION CHECK
-    # -------------------------
-    
-
-    # -------------------------
-    # BEAUTIFULSOUP
-    # -------------------------
-
-    soup = BeautifulSoup(
-        response.text,
-        "html.parser"
-    )
-
-    # -------------------------
-    # PRODUCT CARDS
-    # -------------------------
-
-    cards = soup.select(
-        'div[data-component-type="s-search-result"]'
-    )
-
-    print(
-        "Amazon product cards found:",
-        len(cards)
-    )
-
-    if not cards:
-
-        print(
-            "Amazon page did not contain product cards."
-
-        )
-
-        return []
-
-    # -------------------------
-    # LOOP PRODUCTS
-    # -------------------------
-
-    for card in cards:
-
-        try:
-
-            # -------------------------
-            # NAME
-            # -------------------------
-
-            name_element = card.select_one(
-                "h2 span"
-            )
-
-            name = (
-                name_element.get_text(
-                    " ",
-                    strip=True
-                )
-                if name_element
-                else None
-            )
-
-            
-            # -------------------------
-            # PRICE
-            # -------------------------
-
-            price = None
-
-            price_element = card.select_one(
-                ".a-price .a-offscreen"
-            )
-
-            if price_element:
-                price_text = price_element.get_text(
-                    strip=True
-                )
-
-                cleaned_price = re.sub(
-                    r"[^0-9.]",
-                    "",
-                    price_text.replace(",", "")
-                )
-
+            if match:
                 try:
-                    if cleaned_price:
-                        price = float(cleaned_price)
+                    price = float(match.group(0).replace(",", ""))
                 except ValueError:
                     price = None
 
-            # Fallback: whole price + fraction
-            if price is None:
-                whole_element = card.select_one(
-                    ".a-price-whole"
-                )
+        product_url = (
+            item.get("link_clean")
+            or item.get("link")
+        )
 
-                fraction_element = card.select_one(
-                    ".a-price-fraction"
-                )
-
-                if whole_element:
-                    whole_text = whole_element.get_text(
-                        strip=True
-                    )
-
-                    whole = re.sub(
-                        r"\D",
-                        "",
-                        whole_text
-                    )
-
-                    fraction = (
-                        fraction_element.get_text(
-                            strip=True
-                        ).strip()
-                        if fraction_element
-                        else "00"
-                    )
-
-                    fraction = re.sub(
-                        r"\D",
-                        "",
-                        fraction
-                    )
-
-                    try:
-                        if whole:
-                            price = float(
-                                f"{whole}.{fraction[:2].ljust(2, '0')}"
-                            )
-                    except ValueError:
-                        price = None
-
-            if price is None:
-                print("PRICE NOT FOUND")
-                print("PRODUCT:", name)
-
-            # -------------------------
-            # RATING
-            # -------------------------
-
-            rating = None
-
-            rating_element = card.select_one(
-                "span.a-icon-alt"
+        if not product_url and item.get("asin"):
+            product_url = (
+                "https://www.amazon.com/dp/"
+                + item["asin"]
             )
 
-            if rating_element:
-
-                rating_text = rating_element.get_text(
-                    strip=True
-                )
-
-                rating = clean_amazon_rating(
-                    rating_text
-                )
-
-            
-            # -------------------------
-            # PRODUCT URL
-            # -------------------------
-
-            product_url = None
-
-            url_element = card.select_one(
-                "a.a-link-normal.s-no-outline"
+        delivery = item.get("delivery", [])
+        if isinstance(delivery, list):
+            availability = "; ".join(
+                str(value) for value in delivery
+            ) or ("Available" if price is not None else None)
+        else:
+            availability = (
+                str(delivery)
+                if delivery
+                else ("Available" if price is not None else None)
             )
 
-            if not url_element:
-                url_element = card.select_one(
-                    "a[href*='/dp/']"
-                )
+        products.append({
+            "source": "Amazon",
+            "name": name,
+            "price": price,
+            "rating": item.get("rating"),
+            "availability": availability,
+            "url": product_url,
+            "category": "Wireless Headphones",
+            "description": (
+                item.get("snippet")
+                or item.get("description")
+            ),
+        })
 
-            if not url_element:
-                url_element = card.select_one(
-                    "a[href*='/gp/product/']"
-                )
-
-            if url_element and url_element.get("href"):
-                product_url = url_element.get("href")
-
-                if product_url.startswith("/"):
-                    product_url = (
-                        "https://www.amazon.com"
-                        + product_url
-                    )
-
-            # -------------------------
-            # AVAILABILITY
-            # -------------------------
-
-            availability = None
-            card_text = card.get_text(" ", strip=True)
-
-            availability_patterns = [
-                r"Only \d+ left in stock",
-                r"\bIn Stock\b",
-                r"\bCurrently unavailable\b",
-                r"\bTemporarily out of stock\b",
-            ]
-
-            for pattern in availability_patterns:
-                match = re.search(
-                    pattern,
-                    card_text,
-                    re.IGNORECASE
-                )
-
-                if match:
-                    availability = match.group(0).strip()
-                    break
-
-            # -------------------------
-            # DESCRIPTION
-            # -------------------------
-
-            description = None
-
-            # Detail page verification ki wajah
-            # se description unavailable ho sakti hai.
-
-            if product_url:
-
-                description = scrape_amazon_description(
-                    product_url
-                )
-
-            # -------------------------
-            # PRODUCT RECORD
-            # -------------------------
-
-            product = {
-
-                "name": name,
-
-                "price": price,
-
-                "rating": rating,
-
-                "availability": availability,
-
-                "url": product_url,
-
-                "category": "Wireless Headphones",
-
-                "description": description
-            }
-
-            products.append(product)
-
-        except Exception as e:
-
-            print(
-                "Amazon product skipped:",
-                e
-            )
-
-    print(
-        "Amazon products extracted:",
-        len(products)
-    )
-
-
+    # Remove duplicate product URLs
     unique_products = []
-    seen_urls =set()
+    seen_urls = set()
 
     for product in products:
-
         product_url = product.get("url")
 
         if product_url and product_url not in seen_urls:
             seen_urls.add(product_url)
             unique_products.append(product)
 
+    print("Unique Amazon products:", len(unique_products))
+    return unique_products
 
-    products = unique_products
-
-    print(
-        "Unique amazon products:",
-        len(products)
-    )
-
-
-    valid_products = []
-
-    for product in products:
-
-        if not product.get("name"):
-            continue
-
-        if not product.get("url"):
-            continue
-
-        valid_products.append(product)
-
-    products = valid_products
-
-    print(
-        "Valid Amazon products:",
-        len(products)
-    )
-
-    return products
 
 
 # --------------------------------------------------
@@ -1090,6 +739,11 @@ def scrape_alibaba(url, pages=1):
         if not html:
             print(f"Page {page} failed. Moving to next page...")
             continue
+
+        print("ALIBABA HTML TYPE:", type(html))
+        print("ALIBABA HTML IS EMPTY:", not bool(html))
+        print("ALIBABA HTML LENGTH:", len(html) if html else 0)
+        print("ALIBABA HTML START:", repr(html[:300]) if html else repr(html))
 
         print("Alibaba URL:", page_url)
         print("Alibaba HTML length:", len(html))
