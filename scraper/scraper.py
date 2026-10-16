@@ -736,6 +736,18 @@ def scrape_alibaba(url, pages=1):
 
         html = fetch_page(page_url, filename)
 
+        print("HTML IS NONE:", html is None)
+        print("HTML REPR:", repr(html[:1000]) if html else repr(html))
+
+        soup = BeautifulSoup(html or "", "html.parser")
+
+        print("BODY EXISTS:", soup.body is not None)
+
+        if soup.body:
+            print("BODY HTML:", repr(str(soup.body)[:2000]))
+        else:
+            print("FULL HTML PREVIEW:", repr(str(soup)[:2000]))
+
         if not html:
             print(f"Page {page} failed. Moving to next page...")
             continue
