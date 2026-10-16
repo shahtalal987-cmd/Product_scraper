@@ -741,7 +741,7 @@ def scrape_alibaba(url, pages=1):
 
         soup = BeautifulSoup(html or "", "html.parser")
 
-        print("BODY EXISTS:", soup.body is not None)
+        
 
         if soup.body:
             print("BODY HTML:", repr(str(soup.body)[:2000]))
@@ -762,6 +762,20 @@ def scrape_alibaba(url, pages=1):
         print("HTML SAVED FILE:", filename)
 
         soup = BeautifulSoup(html, "html.parser")
+
+        print("HTML TITLE:", soup.title.get_text(strip=True) if soup.title else "No title")
+
+        print("BODY EXISTS:", soup.body is not None)
+
+        print("BODY HTML:", repr(str(soup.body)[:3000]) if soup.body else "No body")
+
+        print("PRODUCT KEYWORDS:", {
+            "product-title": html.count("product-title"),
+            "productTitle": html.count("productTitle"),
+            "product-title-link": html.count("product-title-link"),
+            "verification": html.lower().count("verify"),
+            "captcha": html.lower().count("captcha"),
+        })
 
         print("HTML BODY TEXT:", soup.get_text(" ", strip=True)[:1500])
 
